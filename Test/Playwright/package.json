@@ -1,0 +1,7 @@
+{
+  "name": "bluefairy-jira-hyva-playwright",
+  "version": "1.0.0",
+  "description": "Storefront acceptance tests for the Hyva companion templates",
+  "scripts": { "test": "playwright test" },
+  "devDependencies": { "@playwright/test": "^1.40.0", "typescript": "^5.3.0", "@types/node": "^20" }
+}
