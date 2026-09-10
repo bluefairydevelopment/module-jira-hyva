@@ -1,0 +1,29 @@
+/**
+ * Copyright © 2026 Blue Fairy Development. All rights reserved.
+ *
+ * Tailwind source registration for BlueFairy_Jira.
+ *
+ * Hyvä's Tailwind build scans the THEME, not this module. `npx hyva-sources`
+ * discovers this file - via Observer/RegisterModuleForHyvaConfig - and emits an
+ * @import for it into the theme's generated hyva-source.css, which is what brings
+ * the classes used in this module's templates into the compiled stylesheet.
+ *
+ * Without it those utilities are absent at runtime and the element renders as
+ * though the class were never written: silently, with no console error and no 404.
+ *
+ * M2MAP-359 measured it on hyvatest against Hyvä/default: 43 of 110 distinct
+ * classes across account/tickets.phtml and ticket/new.phtml emitted no CSS.
+ * Confirmed in the browser, not just against the stylesheet -
+ *
+ *     py-2.5        padding-top   0px   on the Submit Ticket button
+ *     mb-5          margin-bottom 0px
+ *     gap-3         gap           normal
+ *     flex-shrink-0 flex-shrink   1
+ *   against compiled controls text-sm 14px, rounded-md 6px, block.
+ *
+ * AFTER INSTALLING OR UPGRADING THIS MODULE the merchant must rebuild the theme's
+ * CSS (`npm run build` in the theme's web/tailwind directory). Registration alone
+ * changes nothing until the build runs - measured on hyvatest, where free-gift-hyva
+ * was correctly registered and its classes were still missing because nobody had
+ * rebuilt since installing it.
+ */

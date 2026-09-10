@@ -1,0 +1,23 @@
+# Gate 1 static analysis for module-jira-hyva.
+#   MAGENTO_ROOT=/path/to/magento /path/to/magento/vendor/bin/phpstan analyse
+#
+# DELIBERATELY EMPTY OF ignoreErrors. The base package carries ten, each read
+# against the Magento source it names and each with a count - and its own comment
+# explains why: a baseline of "10 known errors" is a baseline in which a NEW
+# method.notFound does not stand out. This package has ONE shipped class, so it
+# starts at a true zero and should stay there. Copying the base list in would
+# import suppressions for code that does not exist here.
+parameters:
+    # composer.json requires "php": "^8.3", and a constraint is a claim about every
+    # version it admits - analyse at the LOWER bound, not at whatever is installed.
+    phpVersion: 80300
+    level: 5
+    paths:
+        - Observer
+        - registration.php
+    excludePaths:
+        - */Test/*
+        - */node_modules/*
+    bootstrapFiles:
+        - Test/bootstrap.php
+    treatPhpDocTypesAsCertain: false

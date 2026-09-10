@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Unit tests for bluefairy/module-jira-hyva.
+
+    Run from the package root, with MAGENTO_ROOT pointing at any Magento
+    installation whose vendor/ carries the framework:
+
+        MAGENTO_ROOT=/path/to/magento \
+            /path/to/magento/vendor/bin/phpunit -c phpunit.xml.dist
+
+    ADDED 2026-09-09, AND THE ABSENCE IS THE POINT. This package shipped four
+    releases - up to v1.0.4 - carrying 21 test files and no way to run any of
+    them. There was no phpunit.xml.dist here, and the house runner
+    (dev/tests/unit/phpunit-bluefairy.xml) only scans app/code/BlueFairy/*,
+    where this module does not live. Twenty-one files sat green by assumption.
+    The identical gap in module-packagist-provisioner let an undefined constant
+    reach a published release.
+
+    Test/Integration is deliberately NOT in the suite below: those tests need a
+    live Magento test framework, not a mocked one, and running them from here
+    would report errors that are really a missing harness.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+         bootstrap="Test/bootstrap.php"
+         colors="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         failOnWarning="true"
+         failOnRisky="true">
+    <testsuites>
+        <testsuite name="BlueFairy_JiraHyva">
+            <directory>Test/Unit</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

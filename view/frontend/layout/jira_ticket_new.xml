@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © 2026 Blue Fairy Development. All rights reserved.
+ *
+ * Replace the base module's Luma template with the Hyva/Alpine one.
+ *
+ * ONLY the template changes. The block name, the container, the page layout, the
+ * title and the view model all stay exactly as BlueFairy_Jira declared them - this
+ * file must not restate them, because a second declaration of the same block is a
+ * second thing to keep in step, and the two will drift.
+ */
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceBlock name="bluefairy.jira.ticket.new"
+                        template="BlueFairy_JiraHyva::ticket/new.phtml"/>
+    </body>
+</page>

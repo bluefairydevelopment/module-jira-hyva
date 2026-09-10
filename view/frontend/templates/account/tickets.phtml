@@ -1,0 +1,248 @@
+<?php
+
+/**
+ * Copyright © 2026 Blue Fairy Development. All rights reserved.
+ *
+ * My Tickets — Hyva/Alpine.js history page template.
+ *
+ * @var \Magento\Framework\View\Element\Template $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+
+declare(strict_types=1);
+
+use Magento\Framework\Escaper;
+use Magento\Framework\View\Element\Template;
+
+/** @var Escaper $escaper */
+/** @var Template $block */
+?>
+
+<script>
+    function initMyTickets() {
+        return {
+            submissions: [],
+            loading: true,
+            error: false,
+            errorMessage: '',
+
+            /**
+             * Retrieve the Magento customer bearer token from localStorage cache storage.
+             */
+            getCustomerToken() {
+                try {
+                    const raw = localStorage.getItem('mage-cache-storage') || '{}';
+                    const storage = JSON.parse(raw);
+                    return storage?.customer?.tokens?.token || null;
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            /**
+             * Format an ISO date string to a readable format.
+             *
+             * @param {string} dateString
+             * @returns {string}
+             */
+            formatDate(dateString) {
+                try {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+                } catch (e) {
+                    return dateString;
+                }
+            },
+
+            /**
+             * Return a human-readable ticket type label.
+             *
+             * @param {string} type
+             * @returns {string}
+             */
+            formatType(type) {
+                const map = { BUG: '<?= $escaper->escapeJs(__('Bug Report')) ?>', SUPPORT: '<?= $escaper->escapeJs(__('Support Request')) ?>' };
+                return map[type] || type;
+            },
+
+            /**
+             * On component init: load ticket history from GraphQL.
+             */
+            async init() {
+                await this.loadSubmissions();
+            },
+
+            /**
+             * Fetch jiraSubmissions from GraphQL and store in submissions array.
+             */
+            async loadSubmissions() {
+                this.loading = true;
+                this.error = false;
+
+                const token = this.getCustomerToken();
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                try {
+                    const res = await fetch('/graphql', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            query: `query {
+                                jiraSubmissions {
+                                    id
+                                    type
+                                    summary
+                                    status
+                                    status_label
+                                    jira_key
+                                    jira_status
+                                    order_id
+                                    created_at
+                                }
+                            }`
+                        })
+                    });
+
+                    const json = await res.json();
+
+                    if (json.errors && json.errors.length > 0) {
+                        throw new Error(json.errors[0].message || '<?= $escaper->escapeJs(__('Failed to load tickets.')) ?>');
+                    }
+
+                    this.submissions = json.data?.jiraSubmissions || [];
+                } catch (e) {
+                    this.error = true;
+                    this.errorMessage = e.message || '<?= $escaper->escapeJs(__('An error occurred while loading your tickets. Please try again.')) ?>';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+</script>
+
+<div x-data="initMyTickets()"
+     x-init="init()"
+     class="bluefairy-jira-my-tickets">
+
+    <!-- Loading spinner -->
+    <template x-if="loading">
+        <div class="flex items-center justify-center py-12">
+            <svg class="animate-spin h-8 w-8 text-primary" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span class="ml-3 text-sm text-gray-500"><?= $escaper->escapeHtml(__('Loading your tickets…')) ?></span>
+        </div>
+    </template>
+
+    <!-- Error state -->
+    <template x-if="!loading && error">
+        <div class="rounded-md bg-red-50 border border-red-200 p-4">
+            <div class="flex items-start gap-3">
+                <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 4a8 8 0 100 16A8 8 0 0012 4z"/>
+                </svg>
+                <p class="text-sm font-medium text-red-800" x-text="errorMessage"></p>
+            </div>
+        </div>
+    </template>
+
+    <!-- Empty state -->
+    <template x-if="!loading && !error && submissions.length === 0">
+        <div class="py-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="mt-4 text-sm text-gray-500">
+                <?= $escaper->escapeHtml(__("You haven't submitted any support tickets yet.")) ?>
+            </p>
+            <div class="mt-6">
+                <a href="<?= $escaper->escapeUrl($block->getUrl('jira/ticket/new')) ?>"
+                   class="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-white shadow-sm
+                          hover:bg-primary-darker focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+                          transition-colors duration-150">
+                    <?= $escaper->escapeHtml(__('Submit a Ticket')) ?>
+                </a>
+            </div>
+        </div>
+    </template>
+
+    <!-- Submissions table -->
+    <template x-if="!loading && !error && submissions.length > 0">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <?= $escaper->escapeHtml(__('Type')) ?>
+                        </th>
+                        <th scope="col"
+                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <?= $escaper->escapeHtml(__('Summary')) ?>
+                        </th>
+                        <th scope="col"
+                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <?= $escaper->escapeHtml(__('Order')) ?>
+                        </th>
+                        <th scope="col"
+                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <?= $escaper->escapeHtml(__('Status')) ?>
+                        </th>
+                        <th scope="col"
+                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <?= $escaper->escapeHtml(__('Date Submitted')) ?>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <template x-for="submission in submissions" :key="submission.id">
+                        <tr class="hover:bg-gray-50 transition-colors duration-100">
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <span x-text="formatType(submission.type)"></span>
+                            </td>
+                            <td class="px-4 py-4 text-sm text-gray-900 max-w-xs">
+                                <span class="line-clamp-2" x-text="submission.summary"></span>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <template x-if="submission.order_id">
+                                    <span x-text="'#' + submission.order_id"></span>
+                                </template>
+                                <template x-if="!submission.order_id">
+                                    <span class="text-gray-400">&mdash;</span>
+                                </template>
+                            </td>
+                            <td class="px-4 py-4 text-sm text-gray-700 max-w-xs">
+                                <template x-if="submission.jira_status">
+                                    <div>
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800"
+                                              x-text="submission.jira_status"></span>
+                                        <template x-if="submission.jira_key">
+                                            <p class="mt-1 text-xs text-gray-400" x-text="submission.jira_key"></p>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="!submission.jira_status">
+                                    <span x-text="submission.status_label"></span>
+                                </template>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <span x-text="formatDate(submission.created_at)"></span>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+</div>

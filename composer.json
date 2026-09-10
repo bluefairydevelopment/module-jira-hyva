@@ -1,0 +1,22 @@
+{
+    "name": "bluefairy/module-jira-hyva",
+    "description": "Hyvä storefront templates for BlueFairy Jira Integration",
+    "type": "magento2-module",
+    "license": [
+        "proprietary"
+    ],
+    "require": {
+        "php": "^8.3",
+        "magento/framework": "^103.0",
+        "bluefairy/module-jira": "^1.2",
+        "hyva-themes/magento2-theme-module": "^1.1"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "BlueFairy\\JiraHyva\\": ""
+        }
+    }
+}

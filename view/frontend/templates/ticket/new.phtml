@@ -1,0 +1,443 @@
+<?php
+
+/**
+ * Copyright © 2026 Blue Fairy Development. All rights reserved.
+ *
+ * Submit a Ticket — Hyva/Alpine.js form template.
+ *
+ * @var \Magento\Framework\View\Element\Template $block
+ * @var \Magento\Framework\Escaper $escaper
+ */
+
+declare(strict_types=1);
+
+use Magento\Framework\Escaper;
+use Magento\Framework\View\Element\Template;
+
+/** @var Escaper $escaper */
+/** @var Template $block */
+/** @var \BlueFairy\Jira\ViewModel\TicketFormConfig|null $viewModel */
+$viewModel = $block->getData('view_model');
+?>
+
+<script>
+    function initJiraTicketForm() {
+        return {
+            // Form fields
+            ticketType: 'BUG',
+            summary: '',
+            description: '',
+            orderId: '',
+
+            // UI state
+            loading: false,
+            success: false,
+            successMessage: '',
+            error: false,
+            errorMessage: '',
+            formDisabled: false,
+
+            // Order picker
+            orders: [],
+            ordersLoading: false,
+            requireOrder: false,
+            noQualifyingOrders: false,
+
+            // Character limit constants
+            summaryLimit: 255,
+            descriptionLimit: 10000,
+
+            // Computed char counts
+            get summaryCount() { return this.summary.length; },
+            get descriptionCount() { return this.description.length; },
+
+            // Show counters when > 50% used
+            get showSummaryCounter() { return this.summaryCount > Math.floor(this.summaryLimit * 0.5); },
+            get showDescriptionCounter() { return this.descriptionCount > Math.floor(this.descriptionLimit * 0.5); },
+
+            // Colour classes for counters
+            get summaryCounterClass() {
+                if (this.summaryCount >= this.summaryLimit) return 'text-red-600 font-semibold';
+                if (this.summaryCount >= Math.floor(this.summaryLimit * 0.9)) return 'text-amber-600 font-semibold';
+                return 'text-gray-500';
+            },
+            get descriptionCounterClass() {
+                if (this.descriptionCount >= this.descriptionLimit) return 'text-red-600 font-semibold';
+                if (this.descriptionCount >= Math.floor(this.descriptionLimit * 0.9)) return 'text-amber-600 font-semibold';
+                return 'text-gray-500';
+            },
+
+            // Whether submit should be disabled
+            get submitDisabled() {
+                return this.loading
+                    || this.formDisabled
+                    || this.summaryCount >= this.summaryLimit
+                    || this.descriptionCount >= this.descriptionLimit
+                    || (this.requireOrder && this.noQualifyingOrders);
+            },
+
+            /**
+             * Retrieve the Magento customer bearer token from localStorage cache storage.
+             */
+            getCustomerToken() {
+                try {
+                    const raw = localStorage.getItem('mage-cache-storage') || '{}';
+                    const storage = JSON.parse(raw);
+                    return storage?.customer?.tokens?.token || null;
+                } catch (e) {
+                    return null;
+                }
+            },
+
+            /**
+             * On component init: fetch eligible orders from GraphQL.
+             */
+            async init() {
+                await this.loadOrders();
+            },
+
+            /**
+             * Fetch jiraEligibleOrders and populate the order picker.
+             */
+            async loadOrders() {
+                this.ordersLoading = true;
+
+                const token = this.getCustomerToken();
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                try {
+                    const res = await fetch('/graphql', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            query: `query {
+                                jiraEligibleOrders {
+                                    increment_id
+                                    created_at_formatted
+                                    product_summary
+                                }
+                            }`
+                        })
+                    });
+
+                    const json = await res.json();
+
+                    if (json.errors) {
+                        // Silently swallow order-fetch errors; form still usable without picker
+                        this.orders = [];
+                    } else {
+                        this.orders = json.data?.jiraEligibleOrders || [];
+                    }
+                } catch (e) {
+                    this.orders = [];
+                } finally {
+                    this.ordersLoading = false;
+                }
+
+                // Determine if order is required via PHP-injected config value
+                this.requireOrder = Boolean(<?= /* @noEscape */ ($viewModel !== null && $viewModel->isOrderRequired() ? 'true' : 'false') ?>);
+
+                if (this.requireOrder && this.orders.length === 0) {
+                    this.noQualifyingOrders = true;
+                }
+            },
+
+            /**
+             * Format an order for the select option label.
+             *
+             * @param {Object} order
+             * @returns {string}
+             */
+            formatOrderLabel(order) {
+                return '#' + order.increment_id + ' \u2014 ' + order.created_at_formatted
+                    + (order.product_summary ? ' (' + order.product_summary + ')' : '');
+            },
+
+            /**
+             * Submit the form via GraphQL createJiraTicket mutation.
+             */
+            async submitTicket() {
+                if (this.submitDisabled) return;
+
+                this.loading = true;
+                this.formDisabled = true;
+                this.error = false;
+                this.errorMessage = '';
+                this.success = false;
+                this.successMessage = '';
+
+                const token = this.getCustomerToken();
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+                try {
+                    const res = await fetch('/graphql', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            query: `mutation CreateJiraTicket($input: CreateJiraTicketInput!) {
+                                createJiraTicket(input: $input) {
+                                    jira_key
+                                    status
+                                    message
+                                }
+                            }`,
+                            variables: {
+                                input: {
+                                    type: this.ticketType,
+                                    summary: this.summary,
+                                    description: this.description,
+                                    order_id: this.orderId || null
+                                }
+                            }
+                        }),
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    const json = await res.json();
+
+                    if (json.errors && json.errors.length > 0) {
+                        throw new Error(json.errors[0].message || '<?= $escaper->escapeJs(__('An unexpected error occurred.')) ?>');
+                    }
+
+                    const result = json.data?.createJiraTicket;
+                    if (!result) {
+                        throw new Error('<?= $escaper->escapeJs(__('An unexpected error occurred.')) ?>');
+                    }
+
+                    this.success = true;
+                    if (result.jira_key) {
+                        this.successMessage = '<?= $escaper->escapeJs(__('Your ticket has been submitted. Reference: ')) ?>' + result.jira_key;
+                    } else {
+                        this.successMessage = result.message
+                            || '<?= $escaper->escapeJs(__('Your ticket is in queue and will be submitted to our support team shortly.')) ?>';
+                    }
+
+                } catch (e) {
+                    clearTimeout(timeoutId);
+
+                    this.formDisabled = false;
+
+                    if (e.name === 'AbortError') {
+                        this.error = true;
+                        this.errorMessage = '<?= $escaper->escapeJs(__('This is taking longer than expected — your request may still be processing. Check My Tickets in a moment.')) ?>';
+                    } else {
+                        this.error = true;
+                        this.errorMessage = e.message || '<?= $escaper->escapeJs(__('An unexpected error occurred. Please try again.')) ?>';
+                    }
+                } finally {
+                    this.loading = false;
+                }
+            }
+        };
+    }
+</script>
+
+<div x-data="initJiraTicketForm()"
+     x-init="init()"
+     class="bluefairy-jira-ticket-form">
+
+    <!-- Success state -->
+    <div role="alert" aria-live="polite" x-show="success" x-cloak
+         class="mb-6 rounded-md bg-green-50 border border-green-200 p-4">
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <div>
+                <p class="text-sm font-medium text-green-800" x-text="successMessage"></p>
+                <p class="mt-1 text-sm text-green-700">
+                    <?= $escaper->escapeHtml(__('You can view your tickets in')) ?>
+                    <a href="<?= $escaper->escapeUrl($block->getUrl('jira/account/tickets')) ?>"
+                       class="font-medium underline hover:text-green-900">
+                        <?= $escaper->escapeHtml(__('My Tickets')) ?>
+                    </a>.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error state -->
+    <div role="alert" aria-live="polite" x-show="error" x-cloak
+         class="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
+        <div class="flex items-start gap-3">
+            <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 4a8 8 0 100 16A8 8 0 0012 4z"/>
+            </svg>
+            <p class="text-sm font-medium text-red-800" x-text="errorMessage"></p>
+        </div>
+    </div>
+
+    <!-- No qualifying orders notice (require_order=Yes and no orders) -->
+    <template x-if="requireOrder && noQualifyingOrders">
+        <div class="mb-6 rounded-md bg-amber-50 border border-amber-200 p-4">
+            <p class="text-sm font-medium text-amber-800">
+                <?= $escaper->escapeHtml(__('You must have a qualifying order to submit a ticket.')) ?>
+            </p>
+        </div>
+    </template>
+
+    <!-- Form (hide after success) -->
+    <template x-if="!success">
+        <form @submit.prevent="submitTicket()" novalidate>
+
+            <!-- Ticket Type -->
+            <div class="mb-5">
+                <label for="jira-ticket-type"
+                       class="block text-sm font-medium text-gray-700 mb-1">
+                    <?= $escaper->escapeHtml(__('Ticket Type')) ?>
+                    <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                </label>
+                <select id="jira-ticket-type"
+                        x-model="ticketType"
+                        :disabled="formDisabled"
+                        class="block w-full rounded-md border-gray-300 shadow-sm
+                               focus:border-primary focus:ring-primary sm:text-sm
+                               disabled:cursor-not-allowed disabled:bg-gray-100">
+                    <option value="BUG"><?= $escaper->escapeHtml(__('Bug Report')) ?></option>
+                    <option value="SUPPORT"><?= $escaper->escapeHtml(__('Support Request')) ?></option>
+                </select>
+            </div>
+
+            <!-- Summary -->
+            <div class="mb-5">
+                <div class="flex items-baseline justify-between mb-1">
+                    <label for="jira-ticket-summary"
+                           class="block text-sm font-medium text-gray-700">
+                        <?= $escaper->escapeHtml(__('Summary')) ?>
+                        <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                    </label>
+                    <span x-show="showSummaryCounter"
+                          x-cloak
+                          :class="summaryCounterClass"
+                          class="text-xs"
+                          aria-live="polite">
+                        <span x-text="summaryCount"></span>/<span x-text="summaryLimit"></span>
+                    </span>
+                </div>
+                <input id="jira-ticket-summary"
+                       type="text"
+                       x-model="summary"
+                       :maxlength="summaryLimit"
+                       :disabled="formDisabled"
+                       placeholder="<?= $escaper->escapeHtmlAttr(__('Brief description of the issue')) ?>"
+                       required
+                       class="block w-full rounded-md border-gray-300 shadow-sm
+                              focus:border-primary focus:ring-primary sm:text-sm
+                              disabled:cursor-not-allowed disabled:bg-gray-100"/>
+                <template x-if="summaryCount >= summaryLimit">
+                    <p class="mt-1 text-xs text-red-600">
+                        <?= $escaper->escapeHtml(__('Maximum 255 characters reached.')) ?>
+                    </p>
+                </template>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-5">
+                <div class="flex items-baseline justify-between mb-1">
+                    <label for="jira-ticket-description"
+                           class="block text-sm font-medium text-gray-700">
+                        <?= $escaper->escapeHtml(__('Description')) ?>
+                        <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                    </label>
+                    <span x-show="showDescriptionCounter"
+                          x-cloak
+                          :class="descriptionCounterClass"
+                          class="text-xs"
+                          aria-live="polite">
+                        <span x-text="descriptionCount"></span>/<span x-text="descriptionLimit"></span>
+                    </span>
+                </div>
+                <textarea id="jira-ticket-description"
+                          x-model="description"
+                          :maxlength="descriptionLimit"
+                          :disabled="formDisabled"
+                          rows="8"
+                          placeholder="<?= $escaper->escapeHtmlAttr(__('Please describe the issue in detail')) ?>"
+                          required
+                          class="block w-full rounded-md border-gray-300 shadow-sm
+                                 focus:border-primary focus:ring-primary sm:text-sm
+                                 disabled:cursor-not-allowed disabled:bg-gray-100"></textarea>
+                <template x-if="descriptionCount >= descriptionLimit">
+                    <p class="mt-1 text-xs text-red-600">
+                        <?= $escaper->escapeHtml(__('Maximum 10,000 characters reached.')) ?>
+                    </p>
+                </template>
+            </div>
+
+            <!-- Order Picker -->
+            <div class="mb-6">
+                <label for="jira-ticket-order"
+                       class="block text-sm font-medium text-gray-700 mb-1">
+                    <?= $escaper->escapeHtml(__('Related Order')) ?>
+                    <template x-if="requireOrder">
+                        <span class="text-red-500 ml-0.5" aria-hidden="true">*</span>
+                    </template>
+                    <template x-if="!requireOrder">
+                        <span class="ml-1 text-xs font-normal text-gray-400"><?= $escaper->escapeHtml(__('(optional)')) ?></span>
+                    </template>
+                </label>
+
+                <template x-if="ordersLoading">
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <svg class="animate-spin h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <?= $escaper->escapeHtml(__('Loading orders…')) ?>
+                    </div>
+                </template>
+
+                <template x-if="!ordersLoading">
+                    <select id="jira-ticket-order"
+                            x-model="orderId"
+                            :disabled="formDisabled || (requireOrder && noQualifyingOrders)"
+                            class="block w-full rounded-md border-gray-300 shadow-sm
+                                   focus:border-primary focus:ring-primary sm:text-sm
+                                   disabled:cursor-not-allowed disabled:bg-gray-100">
+                        <option value=""><?= $escaper->escapeHtml(__('— Select an order —')) ?></option>
+                        <template x-for="order in orders" :key="order.increment_id">
+                            <option :value="order.increment_id" x-text="formatOrderLabel(order)"></option>
+                        </template>
+                    </select>
+                </template>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex items-center gap-4">
+                <button type="submit"
+                        :disabled="submitDisabled"
+                        class="inline-flex items-center justify-center gap-2 rounded-md
+                               bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-sm
+                               hover:bg-primary-darker focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+                               disabled:cursor-not-allowed disabled:opacity-50
+                               transition-colors duration-150">
+                    <template x-if="loading">
+                        <svg class="animate-spin -ml-1 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </template>
+                    <span x-text="loading ? '<?= $escaper->escapeJs(__('Submitting…')) ?>' : '<?= $escaper->escapeJs(__('Submit Ticket')) ?>'"></span>
+                </button>
+
+                <a href="<?= $escaper->escapeUrl($block->getUrl('customer/account')) ?>"
+                   class="text-sm text-gray-500 hover:text-gray-700 underline">
+                    <?= $escaper->escapeHtml(__('Cancel')) ?>
+                </a>
+            </div>
+
+        </form>
+    </template>
+
+</div>

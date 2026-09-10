@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
+    <!--
+        THE SEQUENCE IS LOAD-BEARING, not documentation. Magento merges layout files
+        in module load order, so this module's <referenceBlock> can only replace
+        BlueFairy_Jira's template if BlueFairy_Jira is loaded FIRST. Without the
+        sequence entry the override silently loses the merge on some installs and
+        wins on others, which is the worst kind of theme bug: it depends on
+        app/etc/config.php ordering and reproduces on one box in three.
+    -->
+    <module name="BlueFairy_JiraHyva">
+        <sequence>
+            <module name="BlueFairy_Jira"/>
+            <module name="Hyva_Theme"/>
+        </sequence>
+    </module>
+</config>
