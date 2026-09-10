@@ -12,6 +12,23 @@ bin/magento module:enable BlueFairy_JiraHyva
 bin/magento setup:upgrade
 ```
 
+### `bluefairy/module-jira-graph-ql` is not optional
+
+Both templates in this package do every read and every write through GraphQL —
+`jiraEligibleOrders`, `jiraSubmissions`, `createJiraTicket`. Those operations are
+declared **only** in `bluefairy/module-jira-graph-ql`. Neither this package nor
+`bluefairy/module-jira` ships a `.graphqls` file, and there is no form-post fallback.
+
+Without it both pages render correctly, the order picker stays empty and Submit fails
+silently. The base package's `GraphQlAvailability` view model detects that and replaces
+the page with a notice naming the missing package, so it fails loudly rather than
+quietly — but the fix is to install it (M2MAP-401).
+
+```bash
+composer require bluefairy/module-jira-graph-ql
+bin/magento module:enable BlueFairy_JiraGraphQl
+```
+
 ## Then rebuild the theme's CSS — this step is not optional
 
 ```bash

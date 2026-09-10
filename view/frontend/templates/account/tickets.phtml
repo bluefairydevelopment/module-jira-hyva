@@ -11,14 +11,53 @@
 
 declare(strict_types=1);
 
+use BlueFairy\Jira\ViewModel\GraphQlAvailability;
 use Magento\Framework\Escaper;
 use Magento\Framework\View\Element\Template;
 
 /** @var Escaper $escaper */
 /** @var Template $block */
+
+/**
+ * M2MAP-401. This storefront's ONLY data path is bluefairy/module-jira-graph-ql -
+ * every fetch below is one of its operations. Without it the page renders and does
+ * nothing, so say so instead. Fail-open if the layout argument is absent; the base
+ * package's shipped layout is asserted to pass it.
+ *
+ * The view model lives in the BASE package on purpose: the block, its name, its
+ * container and its arguments are declared once there and this package overrides
+ * the template only.
+ */
+/** @var GraphQlAvailability|null $graphQl */
+$graphQl = $block->getData('graphql_availability');
+$graphQlMissing = $graphQl instanceof GraphQlAvailability && !$graphQl->isAvailable();
+$graphQlPackage = $graphQl instanceof GraphQlAvailability
+    ? $graphQl->getRequiredPackage()
+    : GraphQlAvailability::GRAPHQL_PACKAGE;
 ?>
+<?php if ($graphQlMissing): ?>
+    <div id="jira-graphql-missing" role="alert" class="mb-6 rounded-md bg-red-50 border border-red-200 p-4">
+        <p class="text-sm font-medium text-red-800">
+            <?= $escaper->escapeHtml(__(
+                'Ticket submission is unavailable because the %1 package is not installed or not '
+                . 'enabled. Every ticket this page reads or submits goes through that package\'s '
+                . 'GraphQL API; without it this page would render and silently do nothing.',
+                $graphQlPackage
+            )) ?>
+        </p>
+    </div>
+    <?php return; ?>
+<?php endif; ?>
 
 <script>
+    /**
+     * M2MAP-403. The endpoint is resolved through the framework, NOT hardcoded as
+     * `/graphql`. A root-relative literal is correct only on a store served from the
+     * domain root; getUrl() inherits base URL, store code and secure/unsecure handling.
+     * The three $block->getUrl() page links in this file always did this correctly -
+     * only the data call did not, so every link worked and every request 404'd.
+     */
+    var JIRA_GRAPHQL_URL = '<?= $escaper->escapeJs($block->getUrl('graphql')) ?>';
     function initMyTickets() {
         return {
             submissions: [],
@@ -90,7 +129,7 @@ use Magento\Framework\View\Element\Template;
                 }
 
                 try {
-                    const res = await fetch('/graphql', {
+                    const res = await fetch(JIRA_GRAPHQL_URL, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({

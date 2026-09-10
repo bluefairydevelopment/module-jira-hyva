@@ -11,6 +11,9 @@
         "bluefairy/module-jira": "^1.2",
         "hyva-themes/magento2-theme-module": "^1.1"
     },
+    "suggest": {
+        "bluefairy/module-jira-graph-ql": "REQUIRED for this storefront to work. Both templates here do every read and every write through GraphQL operations declared only in that package; without it the pages render and silently do nothing (M2MAP-401). The base package's GraphQlAvailability view model makes the absence visible on the page rather than silent."
+    },
     "autoload": {
         "files": [
             "registration.php"
