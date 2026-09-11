@@ -1,6 +1,10 @@
 # Changelog — BlueFairy_JiraHyva
 
-## 1.0.0 — unreleased
+## 1.1.0 — unreleased
+
+First release, and it opens at 1.1.0 rather than 1.0.0 deliberately: the three
+Jira packages ship as a set and are versioned together, so a merchant reporting a
+problem names one number rather than three. Jennifer's ruling, 2026-09-10.
 
 First release. Split out of `bluefairy/module-jira` 1.1.x, which shipped Alpine and
 Tailwind templates in the base package with no Luma versions and no companion — so a
