@@ -1,6 +1,6 @@
 # Changelog — BlueFairy_JiraHyva
 
-## 1.1.0 — unreleased
+## 1.1.0 — 2026-09-11
 
 First release, and it opens at 1.1.0 rather than 1.0.0 deliberately: the three
 Jira packages ship as a set and are versioned together, so a merchant reporting a
