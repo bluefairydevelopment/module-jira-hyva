@@ -1,5 +1,32 @@
 # Changelog — BlueFairy_JiraHyva
 
+## 1.1.1 — 2026-09-11
+
+### ⚠ Licence
+
+- **This package is sold, and until this release it shipped an open source licence.**
+  `LICENSE.md` contained the **Open Software License v3.0** — which grants a worldwide,
+  royalty-free, sublicensable right to reproduce, modify and redistribute — while
+  `composer.json` declared `"license": ["proprietary"]`. The two statements contradicted
+  each other, and the open one was the file in the merchant's `vendor/` directory.
+  Almost certainly inherited by copying Magento's own licence file, which is OSL-3.0.
+
+  Replaced with `LICENSE.txt`, the Blue Fairy Development LLC End User License Agreement,
+  **derived from the Printify Integration EULA with only the product identity changed** —
+  name, version, package list and the third-party service. The diff against that instrument
+  is four hunks and every substantive clause is byte-identical, so this is a derivation and
+  not new drafting. It remains a template for attorney review, not legal advice.
+
+  `Test/Unit/Package/TheLicenceAMerchantReceivesTest` pins it: a licence file must ship, it
+  must be the house instrument, it must name **this** product, and the `composer.json`
+  declaration and the shipped text must agree. Controlled against both broken states — the
+  OSL file as the only licence, and no licence file at all — each reddening the assertions
+  that name it. **No test in this estate had ever opened a licence file**, which is how 27
+  of 35 BlueFairy packages came to disagree with themselves: phpcs and phpstan do not read
+  `.md` or `.txt`, and a missing licence file breaks no build.
+
+  Estate context and the per-package tickets are linked from BFDPROD-23.
+
 ## 1.1.0 — 2026-09-11
 
 First release, and it opens at 1.1.0 rather than 1.0.0 deliberately: the three
