@@ -1,15 +1,18 @@
 /**
  * Copyright © 2026 Blue Fairy Development. All rights reserved.
  *
- * Tailwind source registration for BlueFairy_Jira.
+ * Tailwind source registration for BlueFairy_JiraHyva.
  *
  * Hyvä's Tailwind build scans the THEME, not this module. `npx hyva-sources`
  * discovers this file - via Observer/RegisterModuleForHyvaConfig - and emits an
- * @import for it into the theme's generated hyva-source.css, which is what brings
- * the classes used in this module's templates into the compiled stylesheet.
+ * @import for it into the theme's generated hyva-source.css. That @import is
+ * necessary and NOT sufficient: it brings in THIS FILE'S CONTENT, and what puts
+ * the module's own templates into Tailwind's content scan is the @source glob at
+ * the bottom. Until this file declared one, the @import imported a comment.
  *
- * Without it those utilities are absent at runtime and the element renders as
- * though the class were never written: silently, with no console error and no 404.
+ * Without the glob those utilities are absent at runtime and the element renders
+ * as though the class were never written: silently, with no console error and no
+ * 404.
  *
  * M2MAP-359 measured it on hyvatest against Hyvä/default: 43 of 110 distinct
  * classes across account/tickets.phtml and ticket/new.phtml emitted no CSS.
@@ -21,9 +24,25 @@
  *     flex-shrink-0 flex-shrink   1
  *   against compiled controls text-sm 14px, rounded-md 6px, block.
  *
+ * THAT MEASUREMENT WAS OF THE UNCURED STATE AND STOOD HERE AS THOUGH IT WERE
+ * HISTORY. Re-measured on hyvatest 2026-09-11 against the SERVED stylesheet:
+ * 43 of 112, unchanged. The note recording the defect read as the record of a
+ * fix. Estate denominator at that point: 7 Hyvä companions in this estate ship a
+ * view/frontend/tailwind/module.css, 6 declared an @source, this one declared 0.
+ *
  * AFTER INSTALLING OR UPGRADING THIS MODULE the merchant must rebuild the theme's
  * CSS (`npm run build` in the theme's web/tailwind directory). Registration alone
  * changes nothing until the build runs - measured on hyvatest, where free-gift-hyva
  * was correctly registered and its classes were still missing because nobody had
- * rebuilt since installing it.
+ * rebuilt since installing it. README.md says so under a heading calling the step
+ * not optional; that claim is now tested rather than only written.
+ *
+ * No @source inline(...) safelist is needed here. The two :class bindings in this
+ * package (summaryCounterClass and descriptionCounterClass, used at
+ * ticket/new.phtml:361 and :394) return literal class strings written in that same
+ * .phtml - `text-red-600 font-semibold`, `text-amber-600 font-semibold` and
+ * `text-gray-500` - so the glob below already scans them. Measured: 2 of 2
+ * bindings covered, 0 classes reachable only from computed values.
  */
+
+@source "../templates/**/*.phtml";
