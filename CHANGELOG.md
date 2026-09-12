@@ -1,5 +1,25 @@
 # Changelog — BlueFairy_JiraHyva
 
+## 1.1.2 — 2026-09-11
+
+### No change to this package
+
+- **Nothing in this package differs from 1.1.1.** The version moves because the three Jira
+  packages are versioned in lockstep, so a merchant can read one number off their `composer.json`
+  and know what the suite is. Stated plainly rather than dressed up: upgrading from 1.1.1 to
+  1.1.2 gives this package's users nothing.
+
+- What moved in the suite: `bluefairy/module-jira` cured nine call sites that passed a
+  `Magento\Framework\Phrase` where **Magento 2.4.8** declares a string, making its
+  `^103.0` constraint honest at both ends of the range (M2MAP-504), and gained the two Luma
+  storefront captures it had never had (M2MAP-505). `bluefairy/module-jira-graph-ql` corrected its
+  `status_label` documentation.
+
+- **This package's own Hyvä captures were checked and are unaffected.** The four images in
+  `docs/images/` depict this package's templates, which did not change. The similarly-named files
+  added to `module-jira` in this release are the LUMA counterparts, not replacements for these.
+
+
 ## 1.1.1 — 2026-09-11
 
 ### ⚠ Licence

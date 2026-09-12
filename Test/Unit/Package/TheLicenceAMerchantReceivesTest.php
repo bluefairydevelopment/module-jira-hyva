@@ -190,4 +190,54 @@ class TheLicenceAMerchantReceivesTest extends TestCase
             );
         }
     }
+
+    /**
+     * THE LICENCE CARRIES A HARD-CODED VERSION NUMBER, AND NOTHING WAS COMPARING IT.
+     *
+     * `LICENSE.txt` line 5 reads "Version X.Y.Z". composer.json has no version key here -
+     * Packagist takes the version from the git tag - so that line is the only version string
+     * a merchant receives in their vendor/ directory, and it is maintained by hand.
+     *
+     * At 1.1.2 all three Jira packages still said "Version 1.1.1", three commits and one
+     * release after that stopped being true. A hard-coded version does not go stale loudly:
+     * it stays plausible, it is in the one file nobody re-reads, and it is the file that says
+     * what the merchant bought.
+     *
+     * The comparand is the newest `## X.Y.Z` heading in CHANGELOG.md, because that is the
+     * other place the release number is written by hand and the two must agree. It is
+     * deliberately NOT derived from `git describe`: a tag does not exist yet at the moment
+     * this test needs to pass, so a gate keyed on one could never be green before a release.
+     */
+    public function testTheLicenceVersionMatchesTheNewestChangelogEntry(): void
+    {
+        $changelog = self::packageRoot() . '/CHANGELOG.md';
+        self::assertFileExists($changelog, 'no CHANGELOG.md to compare the licence version against');
+
+        self::assertSame(
+            1,
+            preg_match('/^## (\d+\.\d+\.\d+)/m', (string) file_get_contents($changelog), $newest),
+            'CHANGELOG.md has no `## X.Y.Z` heading, so there is nothing to compare the licence '
+            . 'version with and this check would pass over an empty search space'
+        );
+
+        $licence = (string) file_get_contents(self::packageRoot() . '/LICENSE.txt');
+        self::assertSame(
+            1,
+            preg_match('/^Version (\d+\.\d+\.\d+)\s*$/m', $licence, $stated),
+            'LICENSE.txt has no "Version X.Y.Z" line. It had one at 1.1.1; if the line has been '
+            . 'renamed this assertion is now guarding nothing.'
+        );
+
+        self::assertSame(
+            $newest[1],
+            $stated[1],
+            sprintf(
+                'LICENSE.txt says Version %s and the newest CHANGELOG.md entry is %s. That line is '
+                . 'the only version string a merchant receives, because composer.json carries no '
+                . 'version key and Packagist reads the git tag.',
+                $stated[1],
+                $newest[1]
+            )
+        );
+    }
 }
