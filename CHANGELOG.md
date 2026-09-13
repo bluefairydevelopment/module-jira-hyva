@@ -1,5 +1,18 @@
 # Changelog — BlueFairy_JiraHyva
 
+## 1.1.3 — 2026-09-13
+
+### No change to this package
+
+- **Nothing in this package differs from 1.1.2**, and that is the second release running where
+  that sentence is true. The version moves so a merchant can read one number off `composer.json`
+  and know what the whole Jira suite is. Upgrading gives this package's users nothing.
+
+- What moved in the suite: `bluefairy/module-jira` gained `docs/images/admin-config-jira.png`,
+  the admin configuration panel, replacing an image on the selling site that was a PHP stack
+  trace rather than the panel. BFDPROD-22.
+
+
 ## 1.1.2 — 2026-09-11
 
 ### No change to this package
