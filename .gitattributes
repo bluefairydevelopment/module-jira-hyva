@@ -12,3 +12,8 @@ phpunit.xml.dist export-ignore
 phpstan.neon.dist export-ignore
 phpcs.xml.dist export-ignore
 uat-runbook.md export-ignore
+
+# M2MAP-598. The release gate is development tooling, and in a single-package
+# repository the root IS the package - without this line every merchant would
+# receive it. Asserted on the real archive by TheReleaseGateIsArmedTest.
+.githooks/ export-ignore

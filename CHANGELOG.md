@@ -1,5 +1,13 @@
 # Changelog — BlueFairy_JiraHyva
 
+## Unreleased
+
+### Development (not in the package a merchant installs)
+- **A tracked release gate, `.githooks/pre-push`.** A tag push is refused unless the tag is `HEAD`
+  on a clean tree, `CHANGELOG.md` names the version, and `composer validate`, phpunit, phpcs and
+  phpstan all exit 0. Enable once per clone: `git config core.hooksPath .githooks`.
+  `.githooks/` is export-ignored, so the package archive is unchanged. (M2MAP-598)
+
 ## 1.1.3 — 2026-09-13
 
 ### No change to this package
