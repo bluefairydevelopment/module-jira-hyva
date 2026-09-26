@@ -48,8 +48,10 @@
 #   already defined"). Measured 2026-09-25, same phar, same root: in place -> that
 #   crash; copied to a temp dir -> clean run, 13 generated classes resolved.
 #
-# CONTROL: this copy has been seen to refuse - see the 1.1.4 CHANGELOG entry and
-# M2MAP-598. Re-run that control whenever this file changes; a release gate never
+# CONTROL: this copy has been seen to refuse - see the "Unreleased" CHANGELOG entry
+# and M2MAP-598 (planted red test, tag push refused at phpunit, in a scratch clone
+# pushing to a local bare remote; the same clone with the plant removed passed all
+# four gates). Re-run that control whenever this file changes; a release gate never
 # seen to refuse is an untested instrument.
 #
 # Ported from module-recipes (M2MAP-592), which came from order-comments and
@@ -198,6 +200,8 @@ if [ -n "$tags_pushed" ]; then
     # The denominator, carried with the green (module-jira's bootstrap prints it).
     grep -h 'generated class' "$run_dir/phpstan.log" | sort -u | sed 's/^/pre-push:   /' >&2
 
+    # Kept on failure - the refusal names the log in it - and removed on success.
+    # Each refused run leaves its directory (and the ~27 MB phar copy) in TMPDIR.
     rm -rf "$run_dir"
 fi
 

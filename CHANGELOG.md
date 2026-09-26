@@ -7,6 +7,8 @@
   on a clean tree, `CHANGELOG.md` names the version, and `composer validate`, phpunit, phpcs and
   phpstan all exit 0. Enable once per clone: `git config core.hooksPath .githooks`.
   `.githooks/` is export-ignored, so the package archive is unchanged. (M2MAP-598)
+  Seen to refuse before being trusted: a planted failing test blocked a tag push (in a scratch
+  clone pushing to a local bare remote), and the same clone without it passed all four gates.
 
 ## 1.1.3 — 2026-09-13
 

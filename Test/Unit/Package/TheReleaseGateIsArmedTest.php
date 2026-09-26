@@ -26,8 +26,8 @@ use RuntimeException;
  * the root IS the package, so that last one depends on `.githooks/ export-ignore`
  * and is asserted on the real archive. The branch and tag rules are RUN in
  * throwaway repositories, not read. Pushing a real tag over a planted red test is
- * the one control a test cannot do; it is recorded in the hook header, the 1.1.4
- * CHANGELOG and M2MAP-598.
+ * the one control a test cannot do; it is recorded in the hook header, the
+ * "Unreleased" CHANGELOG entry and M2MAP-598.
  */
 class TheReleaseGateIsArmedTest extends TestCase
 {
