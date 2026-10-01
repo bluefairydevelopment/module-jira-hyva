@@ -27,19 +27,32 @@
 # done, so a clone cannot forget. `.githooks/ export-ignore` keeps it out of the
 # package a merchant installs - here the repository root IS the package root.
 #
-# TWO ROOTS, BECAUSE NO ONE MAGENTO ON THIS MACHINE HAS EVERYTHING.
+# THE ROOTS ARE VANILLA INSTALLS, NEVER A MERCHANT SITE.
+#
+#   Module suites run against a vanilla Magento with these packages installed and
+#   compiled. On this machine that is
+#
+#       MAGENTO_ROOT=~/Sites/magento-vanilla     (2.4.9, the latest; PHPUnit 12)
+#
+#   which carries phpunit, phpcs and phpstan in vendor/, so GATE_TOOLS_ROOT can be
+#   left to default to it. luma.bluefairydevelopment.com (on the server) is the
+#   2.4.8 reference install. Do NOT point either root at
+#   ~/Sites/hyva.bluefairydevelopment.com: it is the local copy of the live store.
 #
 #   MAGENTO_ROOT     (required) - a Magento with phpunit in vendor/ AND this
 #                    package's classes compiled into generated/code: module-jira's
 #                    bootstrap REFUSES phpstan without them (M2MAP-506), and the
-#                    graph-ql unit suite needs a generated ContextExtensionInterface
-#                    that carries getIsCustomer() - on a root without it, 34 of 42
-#                    tests error. Measured 2026-09-25: ~/Sites/bluefairydevelopment.com
-#                    (13 generated Jira classes) runs all three suites green; the
-#                    local hyva box has 0 and does not.
+#                    graph-ql unit suite mocks the generated ContextExtensionInterface,
+#                    which must declare getIsCustomer().
 #   GATE_TOOLS_ROOT  (optional, defaults to MAGENTO_ROOT) - a Magento whose vendor/
-#                    carries phpcs and phpstan. ~/Sites/bluefairydevelopment.com has
-#                    neither; ~/Sites/hyva.bluefairydevelopment.com has both.
+#                    carries phpcs and phpstan.
+#
+#   CORRECTED 2026-10-01: this header used to name ~/Sites/bluefairydevelopment.com
+#   as the root that works, and said the local hyva box failed 34 of 42 graph-ql
+#   tests for want of a generated ContextExtensionInterface. That diagnosis was
+#   wrong. The hyva box is 2.4.9 with PHPUnit 12, and the 34 errors were exactly the
+#   suite's calls to getMockForAbstractClass(), which PHPUnit 12 removed. The unit
+#   suites now run green on PHPUnit 9.6 and 12 alike.
 #
 #   PHPSTAN IS RUN FROM A COPY OF ITS PHAR, OUTSIDE ANY vendor/. Run in place, the
 #   phar loads the composer autoloader of the vendor/ it sits in, and when that is
