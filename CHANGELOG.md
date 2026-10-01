@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Development (not in the package a merchant installs)
+- **The unit suite runs on PHPUnit 12 as well as 9.6: 50 tests on both.** On PHPUnit 12 the three
+  data-provider tests in `HyvaOverridesTest` errored and the suite ran 47 tests, because 12 reads
+  only attributes; they now carry `#[DataProvider]` beside the docblock. No assertion was changed.
+- **The release-gate header names the right test root.** Module suites run against a vanilla
+  install, `~/Sites/magento-vanilla` (2.4.9), never a merchant site; `~/Sites/hyva.bluefairydevelopment.com`
+  is the local copy of the live store and is not a test root. It also corrects an earlier diagnosis:
+  the 34 graph-ql errors on a 2.4.9 root were the suite's `getMockForAbstractClass()` calls, which
+  PHPUnit 12 removed, not a missing generated `ContextExtensionInterface`. Comments only.
 - **A tracked release gate, `.githooks/pre-push`.** A tag push is refused unless the tag is `HEAD`
   on a clean tree, `CHANGELOG.md` names the version, and `composer validate`, phpunit, phpcs and
   phpstan all exit 0. Enable once per clone: `git config core.hooksPath .githooks`.

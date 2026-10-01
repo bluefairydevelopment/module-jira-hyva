@@ -68,6 +68,7 @@ class HyvaOverridesTest extends TestCase
      *
      * @dataProvider overrideProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('overrideProvider')]
     public function testEveryOverriddenBlockExistsInTheBasePackage(string $blockName, string $template): void
     {
         $declared = [];
@@ -112,6 +113,7 @@ class HyvaOverridesTest extends TestCase
     /**
      * @dataProvider overrideProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('overrideProvider')]
     public function testTheOverrideNamesATemplateThisPackageShips(string $blockName, string $template): void
     {
         [$module, $path] = explode('::', $template);
@@ -125,6 +127,7 @@ class HyvaOverridesTest extends TestCase
     /**
      * @dataProvider overrideProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('overrideProvider')]
     public function testTheLayoutFileActuallyCarriesTheOverride(string $blockName, string $template): void
     {
         $found = [];
