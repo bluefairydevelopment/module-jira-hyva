@@ -17,6 +17,7 @@
   `.githooks/` is export-ignored, so the package archive is unchanged. (M2MAP-598)
   Seen to refuse before being trusted: a planted failing test blocked a tag push (in a scratch
   clone pushing to a local bare remote), and the same clone without it passed all four gates.
+- The checks that run before a release now run against a Magento install built from the tree being released, with this module installed and compiled. No change to the module.
 
 ## 1.1.3 — 2026-09-13
 

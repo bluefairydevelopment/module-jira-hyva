@@ -185,12 +185,43 @@ if [ -n "$tags_pushed" ]; then
         fi
     done
 
-    echo "pre-push: release gates for tag(s)${tags_pushed}: unit + phpstan against ${MAGENTO_ROOT}, phpcs/phpstan binaries from ${tools_root}" >&2
+    # Exactly one tag, and it must be a version: the package is installed into the gate's Magento at
+    # that version, so a second tag would be gated as if it were the first.
+    tag_version=""
+    set -- $tags_pushed
+    if [ "$#" -eq 1 ]; then
+        v="${1#v}"
+        if echo "$v" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+            tag_version="$v"
+        fi
+    fi
+    if [ -z "$tag_version" ]; then
+        echo "" >&2
+        echo "  Tag push refused: push exactly one tag, and make it a version (x.y.z); got:${tags_pushed}." >&2
+        echo "  The package is installed into the gate's Magento at the tag's version." >&2
+        echo "" >&2
+        exit 1
+    fi
 
-    # ONE PRIVATE DIRECTORY PER RUN, for the logs, phpstan's cache and its phar.
-    run_dir=$(mktemp -d "${TMPDIR:-/tmp}/jira-pre-push.XXXXXX") || exit 1
-    mkdir "$run_dir/phpstan-tmp" || exit 1
+    # The gates run this package's own tests, which build throwaway git repositories; the GIT_DIR git
+    # sets for a hook would point their git commands back at this repository.
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
+    echo "pre-push: running the release gates for tag(s)${tags_pushed} against a copy of ${MAGENTO_ROOT} with this tree installed" >&2
+
+    # ONE PRIVATE DIRECTORY PER RUN, for the logs and phpstan's cache alike. Fixed names under /tmp
+    # were predictable - another local user could plant a symlink and have a gate's output truncate
+    # a file of ours.
+    run_dir=$(mktemp -d "${TMPDIR:-/tmp}/jira-hyva-pre-push.XXXXXX") || exit 1
+    gate_root="$run_dir/gate-root"
+    stan_tmp="$run_dir/phpstan-tmp"
+    mkdir "$stan_tmp" || exit 1
     cp "$stan_src" "$run_dir/phpstan.phar" || exit 1
+    # The gate's Magento copy holds a full vendor/ and the source install's auth.json. It is removed
+    # on every way out of the hook (failure, Ctrl-C, success); only the logs stay on a refusal,
+    # because the refusal names them.
+    trap 'rm -rf "${run_dir:?}/gate-root"' EXIT
+    trap 'exit 130' INT TERM HUP
 
     gate() {
         local name="$1"; shift
@@ -206,10 +237,73 @@ if [ -n "$tags_pushed" ]; then
         echo "pre-push: ${name} exit 0" >&2
     }
 
+    # The install the gates run against: MAGENTO_ROOT's copy with this tree's package in it.
+    prepare_gate_root() {
+        local src="$1" dest="$2" ver="$3" others rc rel line
+        mkdir -p "$dest" || return 1
+        rsync -a --delete --exclude '/generated/' --exclude '/var/' --exclude '/pub/static/' \
+            --exclude '/dev/tests/integration/tmp/' "$src/" "$dest/" || return 1
+        mkdir -p "$dest/generated" "$dest/var" "$dest/pub/static" || return 1
+        rm -f "$dest/app/etc/env.php"
+        [ ! -e "$dest/app/etc/env.php" ] || return 1
+        cd "$dest" || return 1
+        others=$(php -r 'foreach (array_keys(json_decode(file_get_contents("composer.json"), true)["require"] ?? []) as $k) { if (strpos($k, "bluefairy/") === 0) { echo $k, " "; } }') || return 1
+        if [ -n "$others" ]; then
+            # shellcheck disable=SC2086
+            composer remove --no-interaction $others || return 1
+        fi
+        # The module this one extends is a separate repository: build it from its latest tag (not from
+        # whatever is checked out there) and install it beside this tree. GATE_DEPS_ROOT is the directory
+        # holding the sibling checkouts; it defaults to the directory this repository sits in.
+        dep_src="${GATE_DEPS_ROOT:-$(dirname "$root")}/module-jira"
+        dep_tag=$(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE git -C "$dep_src" tag -l 'v[0-9]*' --sort=-v:refname 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1); [ -n "$dep_tag" ] || { echo "MISSING DEP: no release tag in $dep_src (set GATE_DEPS_ROOT to the directory holding the sibling checkouts)"; return 1; }
+        dep_dir="$run_dir/deps/module-jira"
+        mkdir -p "$dep_dir" || return 1
+        env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE git -C "$dep_src" archive -o "$dep_dir.tar" "$dep_tag" || return 1
+        tar -x -f "$dep_dir.tar" -C "$dep_dir" || return 1
+        dep_mod=$(sed -n 's/.*<module name="\([A-Za-z_]*\)".*/\1/p' "$dep_dir/etc/module.xml" | head -1)
+        [ -n "$dep_mod" ] || { echo "MISSING DEP: no module name in $dep_dir/etc/module.xml"; return 1; }
+        composer config "repositories.module-jira" \
+            "{\"type\":\"path\",\"url\":\"$dep_dir\",\"options\":{\"symlink\":false,\"versions\":{\"bluefairy/module-jira\":\"${dep_tag#v}\"}}}" || return 1
+        composer config "repositories.module-jira-hyva" \
+            "{\"type\":\"path\",\"url\":\"$root\",\"options\":{\"symlink\":false,\"versions\":{\"bluefairy/module-jira-hyva\":\"$ver\"}}}" || return 1
+        composer require --no-interaction "bluefairy/module-jira:${dep_tag#v}" "bluefairy/module-jira-hyva:$ver" || return 1
+        php bin/magento module:enable "$dep_mod" BlueFairy_JiraHyva || return 1
+        php -d memory_limit=6G bin/magento setup:di:compile || return 1
+        # The proof that the compile saw this module: it is enabled in the copy's module list.
+        grep -q "'BlueFairy_JiraHyva' => 1" app/etc/config.php || {
+            echo "BlueFairy_JiraHyva is not enabled in the gate root's app/etc/config.php"
+            return 1
+        }
+        # And that what was installed is this tree's bytes, not a cached or older copy.
+        [ -d "$dest/vendor/bluefairy/module-jira-hyva" ] || { echo "MISSING bluefairy/module-jira-hyva: not installed at $dest/vendor/bluefairy/module-jira-hyva"; return 1; }
+        diff -rq -x Test -x .git -x vendor -x node_modules "$root" "$dest/vendor/bluefairy/module-jira-hyva" > "$run_dir/diff.txt" 2>&1
+        rc=$?
+        [ "$rc" -le 1 ] || { echo "diff of bluefairy/module-jira-hyva failed (status $rc)"; return 1; }
+        if grep -q '^Files .* differ$' "$run_dir/diff.txt" || grep -q -v -e '^Only in ' -e '^Files .* differ$' "$run_dir/diff.txt"; then
+            echo "STALE bluefairy/module-jira-hyva: the installed copy differs from this tree"
+            return 1
+        fi
+        while IFS= read -r line; do
+            case "$line" in
+                "Only in $dest/vendor/bluefairy/module-jira-hyva"*)
+                    echo "STALE bluefairy/module-jira-hyva: $line"; return 1 ;;
+                "Only in $root"*)
+                    rel="${line#Only in $root}"; rel="${rel#/}"; case "$rel" in ": "*) rel="${rel#: }" ;; *) rel="${rel/: //}" ;; esac
+                    # A directory rule ("docs-build/ export-ignore") matches only with the trailing slash.
+                    [ ! -d "$root/$rel" ] || rel="$rel/"
+                    [ "$(git -C "$root" check-attr export-ignore -- "$rel" | sed 's/.*: //')" = "set" ] || git -C "$root" check-ignore -q -- "$rel" || { echo "STALE bluefairy/module-jira-hyva: $rel is in the tree but not in the install"; return 1; }
+                    ;;
+            esac
+        done < "$run_dir/diff.txt"
+        cd "$root" || return 1
+    }
+    gate prepare-gate-root prepare_gate_root "$MAGENTO_ROOT" "$gate_root" "$tag_version"
+
     gate composer-validate composer validate --no-check-publish --quiet
-    gate phpunit env MAGENTO_ROOT="$MAGENTO_ROOT" "$MAGENTO_ROOT/vendor/bin/phpunit" -c phpunit.xml.dist
+    gate phpunit env MAGENTO_ROOT="$gate_root" "$gate_root/vendor/bin/phpunit" -c phpunit.xml.dist
     gate phpcs "$tools_root/vendor/bin/phpcs" --standard=phpcs.xml.dist -q
-    gate phpstan env MAGENTO_ROOT="$MAGENTO_ROOT" TMPDIR="$run_dir/phpstan-tmp" php "$run_dir/phpstan.phar" analyse --no-progress --memory-limit=2G
+    gate phpstan env MAGENTO_ROOT="$gate_root" TMPDIR="$stan_tmp" php "$run_dir/phpstan.phar" analyse --no-progress --memory-limit=2G
     # The denominator, carried with the green (module-jira's bootstrap prints it).
     grep -h 'generated class' "$run_dir/phpstan.log" | sort -u | sed 's/^/pre-push:   /' >&2
 
