@@ -1,6 +1,10 @@
 # Changelog — BlueFairy_JiraHyva
 
-## Unreleased
+## 1.1.4 — 2026-10-28
+
+### Changed
+
+- **This package is now free and open source, under the MIT licence.** `LICENSE.txt` is the MIT licence and `composer.json` declares `MIT`. Nothing in the code changes. The base module it extends keeps its own licence.
 
 ### Development (not in the package a merchant installs)
 - **The unit suite runs on PHPUnit 12 as well as 9.6: 50 tests on both.** On PHPUnit 12 the three

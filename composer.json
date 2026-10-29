@@ -3,7 +3,7 @@
     "description": "Hyvä storefront templates for BlueFairy Jira Integration",
     "type": "magento2-module",
     "license": [
-        "proprietary"
+        "MIT"
     ],
     "require": {
         "php": "^8.3",
