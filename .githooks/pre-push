@@ -69,6 +69,11 @@
 #
 # Ported from module-recipes (M2MAP-592), which came from order-comments and
 # free-gift. Single-package repo: no per-package loop.
+#
+# NOT A SERVER-SIDE CONTROL. `git push --no-verify`, an unwired clone, or a tag made in
+# GitHub's UI all bypass it, and branch/tag protection is not available on this repository's
+# plan (the protection and rulesets endpoints return 403). It stops the
+# honest mistake: tagging over a red suite without noticing.
 
 set -u
 

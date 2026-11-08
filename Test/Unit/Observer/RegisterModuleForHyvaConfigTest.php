@@ -30,7 +30,43 @@ class RegisterModuleForHyvaConfigTest extends TestCase
 
     private ComponentRegistrar $registrar;
 
+    /** @var array<string, bool> Collaborators this test verifies; the rest are stubs. */
+    private array $mocked = [];
+
     protected function setUp(): void
+    {
+        $this->build();
+    }
+
+    /**
+     * A collaborator double: a mock when the test asked for one (mock()), otherwise a stub,
+     * so a test that verifies nothing on a collaborator never carries an unconfigured mock.
+     *
+     * @param string $property
+     * @param class-string $type
+     * @return object
+     */
+    private function double(string $property, string $type): object
+    {
+        return isset($this->mocked[$property]) ? $this->createMock($type) : $this->createStub($type);
+    }
+
+    /**
+     * Make these collaborators mocks for this test and rebuild everything around them.
+     * Call it first in a test that sets expectations on them.
+     *
+     * @param string ...$properties
+     * @return void
+     */
+    private function mock(string ...$properties): void
+    {
+        foreach ($properties as $property) {
+            $this->mocked[$property] = true;
+        }
+        $this->build();
+    }
+
+    private function build(): void
     {
         // Magento defines BP at bootstrap; Test/bootstrap.php deliberately does not
         // load app/bootstrap.php, so define it here if it is absent. It is a
@@ -40,7 +76,7 @@ class RegisterModuleForHyvaConfigTest extends TestCase
             define('BP', self::ROOT);
         }
 
-        $this->registrar = $this->createMock(ComponentRegistrar::class);
+        $this->registrar = $this->double('registrar', ComponentRegistrar::class);
     }
 
     private function subject(): RegisterModuleForHyvaConfig
@@ -58,6 +94,7 @@ class RegisterModuleForHyvaConfigTest extends TestCase
 
     public function testItAppendsThisModulesPathRelativeToTheMagentoRoot(): void
     {
+        $this->mock('registrar');
         $modulePath = constant('BP') . '/vendor/bluefairy/module-jira-hyva';
         $this->registrar->method('getPath')
             ->with(ComponentRegistrar::MODULE, 'BlueFairy_JiraHyva')
@@ -83,6 +120,7 @@ class RegisterModuleForHyvaConfigTest extends TestCase
      */
     public function testItRegistersThisPackageAndNotTheBaseModule(): void
     {
+        $this->mock('registrar');
         $this->registrar->expects($this->once())
             ->method('getPath')
             ->with(ComponentRegistrar::MODULE, 'BlueFairy_JiraHyva')
@@ -111,6 +149,7 @@ class RegisterModuleForHyvaConfigTest extends TestCase
 
     public function testItDoesNothingWhenTheEventCarriesNoConfig(): void
     {
+        $this->mock('registrar');
         $this->registrar->expects($this->never())->method('getPath');
 
         $this->subject()->execute($this->eventCarrying(null));

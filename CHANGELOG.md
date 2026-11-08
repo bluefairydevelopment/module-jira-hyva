@@ -1,5 +1,11 @@
 # Changelog — BlueFairy_JiraHyva
 
+## Unreleased
+
+### Documentation
+
+- The pre-push hook's header now says it is a client-side check only: `git push --no-verify`, an unwired clone or a tag made on GitHub bypass it. No change to the module.
+
 ## 1.1.4 — 2026-10-28
 
 ### Changed
