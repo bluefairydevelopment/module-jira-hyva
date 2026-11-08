@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Tests
+
+- The test bootstrap now refuses static analysis when any imported
+  Factory/Extension class is unresolved, whatever its namespace, names each one and prints
+  the `setup:di:compile` fix. The unit suite still synthesises stand-ins. The module itself
+  is unchanged.
+
 ### Documentation
 
 - The pre-push hook's header now says it is a client-side check only: `git push --no-verify`, an unwired clone or a tag made on GitHub bypass it. No change to the module.
