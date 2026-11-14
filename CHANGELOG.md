@@ -4,7 +4,7 @@
 
 ### Development
 
-- The repository now carries the estate Prettier config (`.prettierrc`), so the lint gate blocks on formatting for this package. `.prettierrc` is export-ignored, so it never reaches the merchant archive. The Playwright package files are re-indented; the module itself is unchanged. M2MAP-945.
+- The repository now carries a Prettier config (`.prettierrc`), and its JavaScript, CSS and JSON files follow it. `.prettierrc` is export-ignored, so it is not in the package archive. No behaviour change.
 
 ### Tests
 
