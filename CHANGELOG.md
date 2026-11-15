@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Development
+
+- The repository now carries a Prettier config (`.prettierrc`), and its JavaScript, CSS and JSON files follow it. `.prettierrc` is export-ignored, so it is not in the package archive. No behaviour change.
+
 ### Tests
 
 - The test bootstrap now refuses static analysis when any imported
